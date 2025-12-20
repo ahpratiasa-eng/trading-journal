@@ -16,6 +16,7 @@ import streamlit as st
 import pandas as pd
 import os
 from datetime import datetime
+import matplotlib.pyplot as plt
 
 # Imports Refactored
 from utils import (calculate_ema, calculate_atr, calculate_rsi, calculate_pivot_points,
