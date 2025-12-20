@@ -247,7 +247,8 @@ class FirestorePersistence(DataPersistence):
             
             return df
         except Exception as e:
-            st.error(f"Error memuat dari Firestore: {e}")
+            st.error("Gagal memuat trade. Debug info:")
+            st.exception(e)
             return pd.DataFrame()
 
     def get_trade_count(self) -> int:
