@@ -11,12 +11,18 @@ Version: 1.1.0 - Bahasa Indonesia
 # File paths
 DEFAULT_JOURNAL_FILE = "trading_journal.csv"
 
+
+import streamlit as st
+import pandas as pd
+import os
+from datetime import datetime
+
 # Imports Refactored
 from utils import (calculate_ema, calculate_atr, calculate_rsi, calculate_pivot_points,
                    calculate_obv, calculate_vwap, render_chart, format_currency,
                    format_percentage, CHART_AVAILABLE)
 from models import TradeSetup, TradeRecord, LOT_SIZE
-from data_manager import CSVPersistence, FirestorePersistence, DEFAULT_JOURNAL_FILE
+from data_manager import DataPersistence, CSVPersistence, FirestorePersistence, DEFAULT_JOURNAL_FILE
 from market_client import (get_market_insight, batch_scan, scan_gem, scan_dragon,
                            scan_daytrade, parse_ticker_input, MARKET_INTEL_AVAILABLE)
 
