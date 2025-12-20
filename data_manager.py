@@ -10,10 +10,12 @@ DEFAULT_JOURNAL_FILE = "trading_journal.csv"
 # Optional Cloud Imports
 try:
     from google.cloud import firestore
+    from google.cloud.firestore import Query
     from google.oauth2 import service_account
     import json
 except ImportError:
     firestore = None
+    Query = None
     service_account = None
     json = None
 
@@ -215,8 +217,9 @@ class FirestorePersistence(DataPersistence):
         """Load semua catatan trade dari Firestore."""
         if not self.db: return pd.DataFrame()
         try:
-            # Use string "DESCENDING" to avoid dependency on firestore module constant
-            docs = self.collection.order_by("timestamp", direction="DESCENDING").stream()
+            # Use Query.DESCENDING constant if available, else string
+            direction = Query.DESCENDING if Query else "DESCENDING"
+            docs = self.collection.order_by("timestamp", direction=direction).stream()
             
             items = []
             for doc in docs:
