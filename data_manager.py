@@ -150,8 +150,8 @@ class FirestorePersistence(DataPersistence):
                 key_dict = dict(st.secrets["gcp_service_account"])
                 
                 # Fix: Handle private_key formatting if it comes from TOML string with escaped newlines
-                # if "private_key" in key_dict:
-                #    key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+                if "private_key" in key_dict:
+                    key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
                 
                 creds = service_account.Credentials.from_service_account_info(key_dict)
                 self.db = firestore.Client(credentials=creds)
