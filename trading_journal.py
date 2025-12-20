@@ -1514,6 +1514,23 @@ def main():
                     else:
                         st.success("✅ Backtest Selesai!")
                         
+                        # === LIVE SIGNAL SECTION ===
+                        st.markdown("### 📡 Live Signal (Real-time)")
+                        with st.spinner("Checking live market data..."):
+                            live_signal, live_msg = engine.generate_live_signal(bt_ticker, strategy_type, **params)
+                            
+                            if live_signal == "BUY":
+                                st.success(f"🚀 **SIGNAL: BUY NOW!**\n\n{live_msg}")
+                                st.balloons()
+                            elif live_signal == "SELL":
+                                st.error(f"📉 **SIGNAL: SELL / AVOID!**\n\n{live_msg}")
+                            elif "HOLD" in live_signal:
+                                st.warning(f"✋ **SIGNAL: HOLD (No Action)**\n\n{live_msg}")
+                            else:
+                                st.info(f"ℹ️ **SIGNAL: NEUTRAL**\n\n{live_msg}")
+                        
+                        st.markdown("---")
+                        
                         # Metrics Row
                         m = result.metrics
                         c1, c2, c3, c4 = st.columns(4)

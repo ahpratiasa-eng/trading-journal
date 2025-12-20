@@ -228,6 +228,70 @@ class BacktestEngine:
         
         return BacktestResult(trades_df, equity_df, metrics, df)
 
+    def generate_live_signal(self, ticker: str, strategy_type="MA Cross", **params):
+        """
+        Check the latest signal based on the strategy.
+        Fetches 6 months of data to ensure indicators are stable.
+        """
+        end_date = datetime.now()
+        start_date = end_date - pd.DateOffset(months=6)
+        
+        df = self.fetch_data(ticker, start_date, end_date)
+        if df.empty:
+            return "UNKNOWN", "Data tidak tersedia"
+        
+        # Apply Strategy
+        if strategy_type == "MA Cross":
+            df = strategy_ma_cross(df, **params)
+            last_row = df.iloc[-1]
+            signal = last_row.get('signal', 0)
+            
+            fast = last_row['Fast_MA']
+            slow = last_row['Slow_MA']
+            
+            if signal == 1:
+                return "BUY", f"Golden Cross! Fast MA ({fast:.0f}) > Slow MA ({slow:.0f})"
+            elif signal == -1:
+                return "SELL", f"Death Cross! Fast MA ({fast:.0f}) < Slow MA ({slow:.0f})"
+            else:
+                # Check current state if no signal today
+                if fast > slow:
+                    return "HOLD_BUY", f"Uptrend (Harga > MA). Fast ({fast:.0f}) > Slow ({slow:.0f})"
+                else:
+                    return "HOLD_SELL", f"Downtrend (Harga < MA). Fast ({fast:.0f}) < Slow ({slow:.0f})"
+                    
+        elif strategy_type == "RSI Reversal":
+            df = strategy_rsi_reversal(df, **params)
+            last_row = df.iloc[-1]
+            signal = last_row.get('signal', 0)
+            rsi = last_row['RSI']
+            
+            if signal == 1:
+                return "BUY", f"RSI Reversal Up! RSI ({rsi:.1f}) crossed above {params.get('oversold', 30)}"
+            elif signal == -1:
+                return "SELL", f"RSI Reversal Down! RSI ({rsi:.1f}) crossed below {params.get('overbought', 70)}"
+            else:
+                if rsi > 50:
+                    return "NEUTRAL", f"RSI Bullish Zone ({rsi:.1f})"
+                else:
+                    return "NEUTRAL", f"RSI Bearish Zone ({rsi:.1f})"
+                    
+        elif strategy_type == "Breakout":
+            df = strategy_breakout(df, **params)
+            last_row = df.iloc[-1]
+            signal = last_row.get('signal', 0)
+            close = last_row['Close']
+            high_roll = last_row['High_Roll']
+            
+            if signal == 1:
+                return "BUY", f"Breakout! Close ({close}) > High {params.get('lookback', 20)} days ({high_roll})"
+            elif signal == -1:
+                return "SELL", "Breakdown Low!"
+            else:
+                return "NEUTRAL", f"Consolidation. Price {close}"
+        
+        return "NEUTRAL", "Strategy not recognized"
+
     def _calculate_metrics(self, trades_df, equity_df):
         if trades_df.empty:
             return {
