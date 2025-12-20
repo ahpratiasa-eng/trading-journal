@@ -229,8 +229,7 @@ class FirestorePersistence(DataPersistence):
             items = []
             for doc in docs:
                 item = doc.to_dict()
-                # Server timestamp might be None locally immediately after write? 
-                # or a Datetime object. Pandas handles datetime objects well.
+                item['_id'] = doc.id  # Simpan Document ID untuk referensi update
                 items.append(item)
             
             if not items:
@@ -263,11 +262,37 @@ class FirestorePersistence(DataPersistence):
 
     def save_all_trades(self, df: pd.DataFrame) -> bool:
         """
-        CAUTION: Firestore tidak didesain untuk overwrite bulk seperti CSV.
-        Fungsi ini (edit) agak kompleks di NoSQL.
-        Kita harus update dokumen spesifik. Untuk sekarang, return False atau
-        implementasi update by timestamp/ID jika memungkinkan.
+        Update trade yang diedit di Firestore.
+        Menggunakan kolom '_id' untuk mapping ke dokumen.
         """
-        st.warning("⚠️ Fitur edit massal belum support penuh di Cloud Mode.")
-        return False
+        if not self.db: return False
+        
+        try:
+            batch = self.db.batch()
+            batch_count = 0
+            
+            for index, row in df.iterrows():
+                if '_id' in row and pd.notna(row['_id']):
+                    doc_ref = self.collection.document(row['_id'])
+                    
+                    # Siapkan data update (kecuali _id)
+                    update_data = row.to_dict()
+                    if '_id' in update_data:
+                        del update_data['_id']
+                    
+                    # Convert timestamp object to string if necessary/pandas nonsense
+                    # Firestore usually returns datetime, but pandas might have converted it.
+                    # Just passing the dict should be mostly fine, but let's be careful with dates.
+                    
+                    batch.update(doc_ref, update_data)
+                    batch_count += 1
+            
+            if batch_count > 0:
+                batch.commit()
+                return True
+            return False
+            
+        except Exception as e:
+            st.error(f"Error update Firestore: {e}")
+            return False
 

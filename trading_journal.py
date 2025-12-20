@@ -27,7 +27,7 @@ from models import (TradeSetup, TradeRecord, LOT_SIZE, MIN_RRR_THRESHOLD,
 from data_manager import DataPersistence, CSVPersistence, FirestorePersistence, DEFAULT_JOURNAL_FILE
 from market_client import (get_market_insight, batch_scan, scan_gem, scan_dragon,
                            scan_daytrade, parse_ticker_input, MARKET_INTEL_AVAILABLE)
-
+from analytics import render_analytics_dashboard
 
 
 # =============================================================================
@@ -1343,30 +1343,61 @@ def main():
         journal_df = persistence.load_trades()
         
         if not journal_df.empty:
-            # Stats
-            total_trades = len(journal_df)
-            
-            st.markdown(f"### 📊 Statistik")
-            stat_cols = st.columns(3)
-            with stat_cols[0]:
-                st.metric("Total Trade", total_trades)
-            with stat_cols[1]:
-                if 'checklist_score' in journal_df.columns:
-                    avg_score = journal_df['checklist_score'].mean()
-                    st.metric("Avg Checklist Score", f"{avg_score:.1f}")
-            with stat_cols[2]:
-                if 'rrr' in journal_df.columns:
-                    avg_rrr = journal_df['rrr'].mean()
-                    st.metric("Avg RRR", f"1:{avg_rrr:.2f}")
+            # === ANALYTICS DASHBOARD ===
+            render_analytics_dashboard(journal_df)
             
             st.markdown("---")
             
+            # === PARTIAL EXIT CALCULATOR ===
+            with st.expander("🧮 Kalkulator Average Exit (Partial Take Profit)"):
+                st.caption("Gunakan ini untuk menghitung rata-rata harga jual jika Anda TP bertahap.")
+                
+                col_calc1, col_calc2 = st.columns(2)
+                with col_calc1:
+                    calc_entry = st.number_input("Harga Entry (Opsional)", min_value=0, step=5, help="Untuk estimasi PnL")
+                
+                # Dynamic inputs
+                exits = []
+                cols = st.columns(4)
+                with cols[0]:
+                    e1_p = st.number_input("Exit 1 Price", min_value=0, step=5, key="e1p")
+                    e1_l = st.number_input("Exit 1 Lot", min_value=0, step=1, key="e1l")
+                    if e1_p > 0 and e1_l > 0: exits.append((e1_p, e1_l))
+                with cols[1]:
+                    e2_p = st.number_input("Exit 2 Price", min_value=0, step=5, key="e2p")
+                    e2_l = st.number_input("Exit 2 Lot", min_value=0, step=1, key="e2l")
+                    if e2_p > 0 and e2_l > 0: exits.append((e2_p, e2_l))
+                with cols[2]:
+                    e3_p = st.number_input("Exit 3 Price", min_value=0, step=5, key="e3p")
+                    e3_l = st.number_input("Exit 3 Lot", min_value=0, step=1, key="e3l")
+                    if e3_p > 0 and e3_l > 0: exits.append((e3_p, e3_l))
+                with cols[3]:
+                    e4_p = st.number_input("Exit 4 Price", min_value=0, step=5, key="e4p")
+                    e4_l = st.number_input("Exit 4 Lot", min_value=0, step=1, key="e4l")
+                    if e4_p > 0 and e4_l > 0: exits.append((e4_p, e4_l))
+                
+                if exits:
+                    total_lot = sum(x[1] for x in exits)
+                    total_val = sum(x[0] * x[1] for x in exits)
+                    avg_price = total_val / total_lot if total_lot > 0 else 0
+                    
+                    st.info(f"💵 **Average Exit Price: {avg_price:,.0f}** (Total Lot: {total_lot})")
+                    
+                    if calc_entry > 0:
+                        gross_pnl = (avg_price - calc_entry) * total_lot * 100
+                        pnl_color = "green" if gross_pnl > 0 else "red"
+                        st.markdown(f"**Est. Gross PnL:** :{pnl_color}[{format_currency(gross_pnl)}]")
+                        st.caption("Masukkan 'Average Exit Price' ke kolom Exit di tabel jurnal.")
+
+            st.markdown("---")
+
             # Trade history table with editing capability
             st.markdown("### 📜 Riwayat Trade (Edit untuk Update)")
             
             edited_journal_df = st.data_editor(
                 journal_df,
                 column_config={
+                    "_id": st.column_config.Column(hidden=True),  # Hide ID column
                     "timestamp": st.column_config.DatetimeColumn("Waktu", disabled=True),
                     "ticker": st.column_config.TextColumn("Saham", disabled=True),
                     "entry_price": st.column_config.NumberColumn("Entry", format="Rp %d", disabled=True),

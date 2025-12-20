@@ -5,3 +5,4 @@ mplfinance
 matplotlib
 google-cloud-firestore
 numpy
+plotly
