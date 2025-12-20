@@ -1,0 +1,16 @@
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Streamlit
+.streamlit/secrets.toml
+.streamlit/secrets.toml.backup
+
+# Data (Don't commit local data/settings if you want them private)
+user_settings.json
+trading_journal.csv
+
+# VS Code
+.vscode/
