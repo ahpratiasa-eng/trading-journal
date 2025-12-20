@@ -2,6 +2,9 @@ from dataclasses import dataclass
 
 # Konstanta
 LOT_SIZE = 100
+MIN_RRR_THRESHOLD = 2.0
+DEFAULT_BUY_FEE_PCT = 0.15
+DEFAULT_SELL_FEE_PCT = 0.25
 
 @dataclass
 class TradeSetup:

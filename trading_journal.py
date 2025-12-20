@@ -22,7 +22,8 @@ import matplotlib.pyplot as plt
 from utils import (calculate_ema, calculate_atr, calculate_rsi, calculate_pivot_points,
                    calculate_obv, calculate_vwap, render_chart, format_currency,
                    format_percentage, CHART_AVAILABLE)
-from models import TradeSetup, TradeRecord, LOT_SIZE
+from models import (TradeSetup, TradeRecord, LOT_SIZE, MIN_RRR_THRESHOLD, 
+                    DEFAULT_BUY_FEE_PCT, DEFAULT_SELL_FEE_PCT)
 from data_manager import DataPersistence, CSVPersistence, FirestorePersistence, DEFAULT_JOURNAL_FILE
 from market_client import (get_market_insight, batch_scan, scan_gem, scan_dragon,
                            scan_daytrade, parse_ticker_input, MARKET_INTEL_AVAILABLE)
