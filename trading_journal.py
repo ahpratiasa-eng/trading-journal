@@ -225,6 +225,14 @@ def main():
         header {visibility: hidden;}
         .stDeployButton {display: none;}
         [data-testid="stToolbar"] {display: none;}
+        [data-testid="stDecoration"] {display: none;}
+        [data-testid="stStatusWidget"] {display: none;}
+        .viewerBadge_container__1QSob {display: none !important;}
+        .styles_viewerBadge__1yB5_ {display: none !important;}
+        .viewerBadge_link__1S137 {display: none !important;}
+        .css-15zrgzn {display: none !important;}
+        .css-eczf16 {display: none !important;}
+        .css-jn99sy {display: none !important;}
     </style>
     """, unsafe_allow_html=True)
     
