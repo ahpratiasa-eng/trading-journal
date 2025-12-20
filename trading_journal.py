@@ -365,6 +365,53 @@ def main():
         
         st.markdown("---")
         
+        # === ⭐ SMART WATCHLIST ===
+        with st.expander("⭐ Smart Watchlist", expanded=False):
+            # Load watchlist
+            watchlist = st.session_state.user_settings.get("watchlist", [])
+            
+            # Input to add
+            new_wl = st.text_input("Tambah Saham (+)", placeholder="BBCA", key="wl_input").upper()
+            if st.button("Simpan ke Watchlist"):
+                if new_wl and new_wl not in watchlist:
+                    watchlist.append(new_wl)
+                    st.session_state.user_settings["watchlist"] = watchlist
+                    save_user_settings(st.session_state.user_settings)
+                    st.rerun()
+            
+            # Display List with Quick Signal
+            if watchlist:
+                st.caption("Klik untuk hapus (x) atau analisa (📊)")
+                for w_ticker in watchlist:
+                    c1, c2, c3 = st.columns([2, 1, 1])
+                    with c1:
+                        st.markdown(f"**{w_ticker}**")
+                    with c2:
+                        if st.button("📊", key=f"anl_{w_ticker}", help="Analisa"):
+                            st.session_state.ticker_input = w_ticker
+                            st.rerun()
+                    with c3:
+                        if st.button("❌", key=f"del_{w_ticker}", help="Hapus"):
+                            watchlist.remove(w_ticker)
+                            st.session_state.user_settings["watchlist"] = watchlist
+                            save_user_settings(st.session_state.user_settings)
+                            st.rerun()
+                            
+                # Auto-Scan Button
+                if st.button("⚡ Scan Watchlist"):
+                    with st.spinner("Scanning..."):
+                        wl_results = batch_scan(watchlist, "gem") # Default GEM scan
+                        st.session_state.wl_results = wl_results
+            
+            # Show Scan Results if available
+            if 'wl_results' in st.session_state:
+                for res in st.session_state.wl_results:
+                    color = "green" if res.get('is_gem') else "red"
+                    icon = "✅" if res.get('is_gem') else "💤"
+                    st.caption(f"{icon} {res['ticker']}: {res.get('status')} ({res.get('change_pct', 0):+.1f}%)")
+
+        st.markdown("---")
+
         # Input Ticker (with support for selected_ticker from batch scanner)
         # Initialize ticker_input in session state if not exists
         if "ticker_input" not in st.session_state:
@@ -1345,6 +1392,103 @@ def main():
         journal_df = persistence.load_trades()
         
         if not journal_df.empty:
+            # === PORTFOLIO TRACKER (Floating PnL) ===
+            open_trades = journal_df[journal_df['status'] == 'OPEN'].copy()
+            
+            if not open_trades.empty:
+                st.markdown("### 🎒 Portfolio Aktif (Floating PnL)")
+                
+                # Button to refresh prices
+                if st.button("🔄 Refresh Harga Saham", use_container_width=True):
+                    st.rerun()
+                
+                # Fetch live prices for open trades
+                tickers_list = open_trades['ticker'].unique().tolist()
+                formatted_tickers = [f"{t}.JK" for t in tickers_list]
+                
+                try:
+                    # Batch fetch
+                    with st.spinner("Mengupdate harga pasar terkini..."):
+                        # Use yf.download for batch processing
+                        live_data = yf.download(formatted_tickers, period="1d", progress=False)['Close']
+                        
+                        # Handle single ticker result (Series) vs multiple (DataFrame)
+                        current_prices = {}
+                        if len(tickers_list) == 1:
+                            # It's a Series, get the last value
+                            ticker = tickers_list[0]
+                            if not live_data.empty:
+                                price = float(live_data.iloc[-1])
+                                current_prices[ticker] = price
+                        else:
+                            # It's a DataFrame, get last row
+                            if not live_data.empty:
+                                last_row = live_data.iloc[-1]
+                                for t in tickers_list:
+                                    col_name = f"{t}.JK"
+                                    if col_name in last_row:
+                                        current_prices[t] = float(last_row[col_name])
+                    
+                    # Calculate Floating PnL
+                    total_floating_pnl = 0
+                    total_invested = 0
+                    
+                    portfolio_data = []
+                    
+                    for idx, row in open_trades.iterrows():
+                        ticker = row['ticker']
+                        entry = row['entry_price']
+                        lots = row['lots']
+                        shares = lots * LOT_SIZE
+                        
+                        curr_price = current_prices.get(ticker, entry) # Fallback to entry if fetch fails
+                        
+                        # Value
+                        market_val = curr_price * shares
+                        cost_basis = entry * shares
+                        floating_pnl = market_val - cost_basis
+                        pnl_pct = (floating_pnl / cost_basis * 100) if cost_basis > 0 else 0
+                        
+                        total_floating_pnl += floating_pnl
+                        total_invested += cost_basis
+                        
+                        portfolio_data.append({
+                            "Ticker": ticker,
+                            "Lot": lots,
+                            "Avg Price": entry,
+                            "Last Price": curr_price,
+                            "Market Value": market_val,
+                            "Floating PnL": floating_pnl,
+                            "%": pnl_pct
+                        })
+                    
+                    # Display Summary Metrics
+                    p_col1, p_col2, p_col3 = st.columns(3)
+                    with p_col1:
+                        st.metric("Total Investment", format_currency(total_invested, compact=True))
+                    with p_col2:
+                        st.metric("Portfolio Value", format_currency(total_invested + total_floating_pnl, compact=True))
+                    with p_col3:
+                        st.metric("Floating PnL", format_currency(total_floating_pnl, compact=True), f"{(total_floating_pnl/total_invested*100):.2f}%" if total_invested else "0%")
+                        
+                    # Display Detailed Table
+                    st.dataframe(
+                        pd.DataFrame(portfolio_data).style.format({
+                            "Avg Price": "Rp {:,.0f}",
+                            "Last Price": "Rp {:,.0f}",
+                            "Market Value": "Rp {:,.0f}",
+                            "Floating PnL": "Rp {:+,.0f}",
+                            "%": "{:+.2f}%"
+                        }),
+                        use_container_width=True,
+                        hide_index=True
+                    )
+                    
+                except Exception as e:
+                    st.warning(f"Gagal mengambil data harga live: {e}")
+            
+            st.markdown("---")
+
             # === ANALYTICS DASHBOARD ===
             render_analytics_dashboard(journal_df)
             
