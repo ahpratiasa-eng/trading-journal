@@ -28,6 +28,7 @@ from data_manager import DataPersistence, CSVPersistence, FirestorePersistence, 
 from market_client import (get_market_insight, batch_scan, scan_gem, scan_dragon,
                            scan_daytrade, parse_ticker_input, MARKET_INTEL_AVAILABLE)
 from analytics import render_analytics_dashboard
+from backtester import BacktestEngine
 
 
 # =============================================================================
@@ -677,10 +678,11 @@ def main():
     st.markdown("*Disiplin adalah jembatan antara tujuan dan pencapaian*")
     
     # === TABS NAVIGATION ===
-    tab_calc, tab_scanner, tab_journal = st.tabs([
+    tab_calc, tab_scanner, tab_journal, tab_backtest = st.tabs([
         "🧮 Kalkulator & Analisa", 
         "🔍 Batch Scanner", 
-        "📋 Jurnal & Riwayat"
+        "📋 Jurnal & Riwayat",
+        "🔙 Backtester"
     ])
     
     # ==========================================================================
@@ -1458,6 +1460,124 @@ def main():
             )
         else:
             st.info("📝 Belum ada trade tercatat. Mulai catat trade Anda di tab Kalkulator!")
+
+    # ==========================================================================
+    # TAB 4: BACKTESTER
+    # ==========================================================================
+    with tab_backtest:
+        st.markdown("## 🔙 Advanced Strategy Backtester")
+        st.caption("Uji strategi Anda dengan data historis sebelum trading beneran.")
+
+        col_conf1, col_conf2 = st.columns([1, 2])
+        
+        with col_conf1:
+            st.subheader("⚙️ Konfigurasi")
+            
+            # Inputs
+            bt_ticker = st.text_input("Saham", value=ticker if ticker else "BBCA", key="bt_ticker").upper()
+            
+            start_date = st.date_input("Mulai", value=datetime(2023, 1, 1))
+            end_date = st.date_input("Selesai", value=datetime.now())
+            
+            bt_capital = st.number_input("Modal Awal", value=100_000_000, step=1_000_000)
+            
+            st.markdown("---")
+            st.markdown("### 🧠 Strategi")
+            
+            strategy_type = st.selectbox(
+                "Pilih Strategi",
+                ["MA Cross", "RSI Reversal", "Breakout"]
+            )
+            
+            # Dynamic Params
+            params = {}
+            if strategy_type == "MA Cross":
+                params['fast_period'] = st.number_input("Fast MA", value=20)
+                params['slow_period'] = st.number_input("Slow MA", value=50)
+            elif strategy_type == "RSI Reversal":
+                params['period'] = st.number_input("RSI Period", value=14)
+                params['oversold'] = st.number_input("Oversold Level", value=30)
+                params['overbought'] = st.number_input("Overbought Level", value=70)
+            elif strategy_type == "Breakout":
+                params['lookback'] = st.number_input("Lookback Days", value=20)
+            
+            run_bt = st.button("🚀 Run Backtest", type="primary", use_container_width=True)
+
+        with col_conf2:
+            if run_bt:
+                with st.spinner(f"Backtesting {bt_ticker} using {strategy_type}..."):
+                    engine = BacktestEngine(initial_capital=bt_capital)
+                    result = engine.run(bt_ticker, start_date, end_date, strategy_type, **params)
+                    
+                    if result is None or result.trades.empty:
+                        st.warning("⚠️ Tidak ada trade yang dihasilkan atau data tidak ditemukan.")
+                    else:
+                        st.success("✅ Backtest Selesai!")
+                        
+                        # Metrics Row
+                        m = result.metrics
+                        c1, c2, c3, c4 = st.columns(4)
+                        c1.metric("Total Return", f"{m['return_pct']:.2f}%", f"{format_currency(m['net_profit'])}")
+                        c2.metric("Win Rate", f"{m['win_rate']:.1f}%", f"{m['total_trades']} Trades")
+                        c3.metric("Profit Factor", f"{m['profit_factor']:.2f}")
+                        c4.metric("Max Drawdown", f"{m['max_drawdown']:.2f}%")
+                        
+                        st.markdown("---")
+                        
+                        # Charts
+                        tab_chart, tab_trades = st.tabs(["📈 Equity & Chart", "📜 Trade List"])
+                        
+                        with tab_chart:
+                            # Equity Curve
+                            st.subheader("Equity Curve")
+                            st.line_chart(result.equity_curve['equity'], color="#00b894")
+                            
+                            # Price Chart with Entries/Exits (Basic with pyplot as utils.render_chart expects specific format)
+                            st.subheader("Trade Visualization")
+                            
+                            # Use existing render_chart logic if possible, but we need to overlay trades
+                            # For simplicity, let's use a simple Matplotlib chart here
+                            
+                            fig, ax = plt.subplots(figsize=(12, 6))
+                            df_chart = result.df_data
+                            ax.plot(df_chart.index, df_chart['Close'], label='Price', alpha=0.5)
+                            
+                            # Plot MA if relevant
+                            if strategy_type == "MA Cross":
+                                if 'Fast_MA' in df_chart.columns: ax.plot(df_chart.index, df_chart['Fast_MA'], label='Fast MA', linestyle='--')
+                                if 'Slow_MA' in df_chart.columns: ax.plot(df_chart.index, df_chart['Slow_MA'], label='Slow MA', linestyle='--')
+                                
+                            # Plot Trades
+                            trades = result.trades
+                            
+                            # Buy points
+                            buys = trades[trades['entry_date'].notna()]
+                            ax.scatter(buys['entry_date'], buys['entry_price'], marker='^', color='green', s=100, label='Buy', zorder=5)
+                            
+                            # Sell points
+                            sells = trades[trades['exit_date'].notna()]
+                            ax.scatter(sells['exit_date'], sells['exit_price'], marker='v', color='red', s=100, label='Sell', zorder=5)
+                            
+                            ax.set_title(f"{bt_ticker} - {strategy_type}")
+                            ax.legend()
+                            ax.grid(True, alpha=0.3)
+                            
+                            # Styling darker background to match theme
+                            fig.patch.set_facecolor('#0e1117')
+                            ax.set_facecolor('#0e1117')
+                            ax.tick_params(colors='white')
+                            ax.xaxis.label.set_color('white')
+                            ax.yaxis.label.set_color('white')
+                            ax.title.set_color('white')
+                            for spine in ax.spines.values():
+                                spine.set_edgecolor('white')
+                                
+                            st.pyplot(fig)
+                        
+                        with tab_trades:
+                            st.dataframe(result.trades, use_container_width=True)
+            else:
+                st.info("👈 Konfigurasikan strategi dan klik 'Run Backtest' untuk memulai.")
 
 
 if __name__ == "__main__":
