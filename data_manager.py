@@ -7,6 +7,16 @@ from models import TradeRecord
 # File paths
 DEFAULT_JOURNAL_FILE = "trading_journal.csv"
 
+# Optional Cloud Imports
+try:
+    from google.cloud import firestore
+    from google.oauth2 import service_account
+    import json
+except ImportError:
+    firestore = None
+    service_account = None
+    json = None
+
 class DataPersistence(ABC):
     """Abstract base class untuk persistensi data."""
     
@@ -132,11 +142,7 @@ class FirestorePersistence(DataPersistence):
     """Implementasi persistensi data berbasis Google Cloud Firestore."""
     
     def __init__(self, collection_name: str = "trades"):
-        try:
-            from google.cloud import firestore
-            from google.oauth2 import service_account
-            import json
-        except ImportError:
+        if firestore is None:
             st.error("⚠️ Library google-cloud-firestore belum terinstall.")
             return
 
