@@ -195,8 +195,14 @@ class FirestorePersistence(DataPersistence):
                 'exit_price': record.exit_price,
                 'realized_pnl': record.realized_pnl,
                 'status': record.status,
-                'created_at': firestore.SERVER_TIMESTAMP  # Tambah timestamp server
+                'status': record.status,
+                'created_at': firestore.SERVER_TIMESTAMP if firestore else None # Use module level or None
             }
+            
+            # Defensive check for timestamp
+            if data['created_at'] is None:
+                from google.cloud import firestore as fs_local
+                data['created_at'] = fs_local.SERVER_TIMESTAMP
             
             # Add document (Auto ID)
             self.collection.add(data)
@@ -209,7 +215,8 @@ class FirestorePersistence(DataPersistence):
         """Load semua catatan trade dari Firestore."""
         if not self.db: return pd.DataFrame()
         try:
-            docs = self.collection.order_by("timestamp", direction=firestore.Query.DESCENDING).stream()
+            # Use string "DESCENDING" to avoid dependency on firestore module constant
+            docs = self.collection.order_by("timestamp", direction="DESCENDING").stream()
             
             items = []
             for doc in docs:
