@@ -152,19 +152,24 @@ class FirestorePersistence(DataPersistence):
         self.db = None
         
         try:
-            # Coba autentikasi via st.secrets (Prioritas untuk Streamlit Cloud)
+            # Priority 1: Streamlit secrets (Streamlit Cloud)
             if "gcp_service_account" in st.secrets:
-                # Menggunakan dictionary langsung dari secrets TOML
                 key_dict = dict(st.secrets["gcp_service_account"])
-                
-                # Fix: Handle private_key formatting if it comes from TOML string with escaped newlines
                 if "private_key" in key_dict:
                     key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
-                
                 creds = service_account.Credentials.from_service_account_info(key_dict)
                 self.db = firestore.Client(credentials=creds)
             
-            # Fallback: Environment Variable (Data lokal / Default gcloud auth)
+            # Priority 2: Environment variable GCP_SERVICE_ACCOUNT_JSON (Render.com)
+            elif os.environ.get("GCP_SERVICE_ACCOUNT_JSON"):
+                import json as json_module
+                key_dict = json_module.loads(os.environ["GCP_SERVICE_ACCOUNT_JSON"])
+                if "private_key" in key_dict:
+                    key_dict["private_key"] = key_dict["private_key"].replace("\\n", "\n")
+                creds = service_account.Credentials.from_service_account_info(key_dict)
+                self.db = firestore.Client(credentials=creds)
+            
+            # Fallback: Default gcloud auth (local development)
             else:
                 self.db = firestore.Client()
                 
