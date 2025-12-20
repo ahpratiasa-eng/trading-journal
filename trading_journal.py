@@ -1396,8 +1396,8 @@ def main():
             
             edited_journal_df = st.data_editor(
                 journal_df,
+                column_order=["timestamp", "ticker", "entry_price", "lots", "exit_price", "status", "realized_pnl", "notes"],
                 column_config={
-                    "_id": st.column_config.Column(hidden=True),  # Hide ID column
                     "timestamp": st.column_config.DatetimeColumn("Waktu", disabled=True),
                     "ticker": st.column_config.TextColumn("Saham", disabled=True),
                     "entry_price": st.column_config.NumberColumn("Entry", format="Rp %d", disabled=True),
