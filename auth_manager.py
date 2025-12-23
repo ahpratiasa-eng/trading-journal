@@ -290,6 +290,36 @@ def get_all_users() -> list:
     return users
 
 
+def change_password(username: str, old_password: str, new_password: str) -> tuple[bool, str]:
+    """Change password for a user. Requires old password verification."""
+    db = get_auth_db()
+    if not db:
+        return False, "Database tidak tersedia"
+    
+    users_ref = db.collection('users')
+    
+    # Find user
+    user_docs = users_ref.where('username', '==', username).limit(1).get()
+    user_list = list(user_docs)
+    
+    if len(user_list) == 0:
+        return False, f"User '{username}' tidak ditemukan"
+    
+    user_doc = user_list[0]
+    user_data = user_doc.to_dict()
+    
+    # Verify old password
+    if not verify_password(old_password, user_data['password_hash']):
+        return False, "Password lama salah!"
+    
+    # Update with new password
+    users_ref.document(user_doc.id).update({
+        'password_hash': hash_password(new_password)
+    })
+    
+    return True, "Password berhasil diubah!"
+
+
 # =============================================================================
 # SESSION MANAGEMENT
 # =============================================================================
@@ -448,6 +478,31 @@ def render_admin_panel():
                 st.rerun()
             else:
                 st.error(msg)
+        
+        st.markdown("---")
+        st.markdown("#### 🔑 Ganti Password")
+        
+        current_user = get_current_user()
+        st.caption(f"Ganti password untuk: **{current_user.get('username', '')}**")
+        
+        old_pass = st.text_input("Password Lama", type="password", key="old_password")
+        new_pass = st.text_input("Password Baru", type="password", key="new_password")
+        confirm_pass = st.text_input("Konfirmasi Password Baru", type="password", key="confirm_password")
+        
+        if st.button("🔐 Ganti Password", key="btn_change_password"):
+            if not old_pass or not new_pass or not confirm_pass:
+                st.warning("Semua field harus diisi!")
+            elif new_pass != confirm_pass:
+                st.error("Password baru tidak cocok dengan konfirmasi!")
+            elif len(new_pass) < 6:
+                st.warning("Password baru minimal 6 karakter!")
+            else:
+                success, msg = change_password(current_user.get('username', ''), old_pass, new_pass)
+                if success:
+                    st.success(msg)
+                    st.balloons()
+                else:
+                    st.error(msg)
 
 
 def render_logout_button():
