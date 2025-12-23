@@ -93,57 +93,21 @@ def verify_password(password: str, password_hash: str) -> bool:
 # DEVICE FINGERPRINT
 # =============================================================================
 
-def get_device_fingerprint_js() -> str:
-    """Return JavaScript code for device fingerprinting."""
-    return """
-    <script>
-    function getDeviceFingerprint() {
-        const data = [
-            navigator.userAgent,
-            screen.width + 'x' + screen.height,
-            Intl.DateTimeFormat().resolvedOptions().timeZone,
-            navigator.language,
-            new Date().getTimezoneOffset()
-        ].join('|');
-        
-        // Simple hash function
-        let hash = 0;
-        for (let i = 0; i < data.length; i++) {
-            const char = data.charCodeAt(i);
-            hash = ((hash << 5) - hash) + char;
-            hash = hash & hash;
-        }
-        
-        // Store in sessionStorage for Streamlit to read
-        const fingerprint = 'DEV-' + Math.abs(hash).toString(16).toUpperCase();
-        
-        // Send to Streamlit via query param trick
-        if (!window.location.search.includes('device_fp=')) {
-            const url = new URL(window.location);
-            url.searchParams.set('device_fp', fingerprint);
-            window.history.replaceState({}, '', url);
-            window.location.reload();
-        }
-    }
-    
-    // Run on load
-    getDeviceFingerprint();
-    </script>
-    """
-
-
 def get_device_id() -> str:
-    """Get device ID from query params or generate fallback."""
-    # Try to get from query params (set by JavaScript)
-    params = st.query_params
-    if "device_fp" in params:
-        return params["device_fp"]
+    """
+    Get device ID using a simple approach that works in Streamlit Cloud.
+    Uses session-based ID that persists during browser session.
+    """
+    # If device_id already in session, use it
+    if "device_id" in st.session_state:
+        return st.session_state.device_id
     
-    # Fallback: generate based on session
-    if "fallback_device_id" not in st.session_state:
-        st.session_state.fallback_device_id = f"FB-{uuid.uuid4().hex[:12].upper()}"
+    # Generate a unique device ID based on session
+    # This will be unique per browser session
+    device_id = f"DEV-{uuid.uuid4().hex[:12].upper()}"
+    st.session_state.device_id = device_id
     
-    return st.session_state.fallback_device_id
+    return device_id
 
 
 # =============================================================================
@@ -354,13 +318,8 @@ def logout():
 
 def render_login_page():
     """Render the login page UI."""
-    # Inject device fingerprint JavaScript
+    # Get device ID (session-based, no JavaScript needed)
     device_id = get_device_id()
-    
-    if "device_fp" not in st.query_params:
-        st.markdown(get_device_fingerprint_js(), unsafe_allow_html=True)
-        st.info("🔄 Mempersiapkan keamanan device...")
-        st.stop()
     
     # Ensure admin exists
     ensure_admin_exists()
