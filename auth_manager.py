@@ -379,7 +379,7 @@ def render_login_page():
     # Login form
     st.markdown("<div class='login-header'>", unsafe_allow_html=True)
     st.markdown("# 🔐 Login")
-    st.markdown("*Trading Journal Pro*")
+    st.markdown("*Jurnal by Akbar*")
     st.markdown("</div>", unsafe_allow_html=True)
     
     col1, col2, col3 = st.columns([1, 2, 1])

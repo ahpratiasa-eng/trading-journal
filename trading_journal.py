@@ -92,7 +92,7 @@ def create_metric_card(label: str, value: str, delta: str = None, delta_color: s
 def main():
     # Konfigurasi halaman
     st.set_page_config(
-        page_title="Jurnal Trading Pro",
+        page_title="Jurnal by Akbar",
         page_icon="📊",
         layout="wide",
         initial_sidebar_state="expanded"
@@ -746,7 +746,7 @@ def main():
     # INTERFACE UTAMA
     # ==========================================================================
     
-    st.title("📊 Jurnal Trading Akbar")
+    st.title("📊 Jurnal by Akbar")
     st.markdown("*Disiplin adalah jembatan antara tujuan dan pencapaian*")
     
     # === TABS NAVIGATION ===
