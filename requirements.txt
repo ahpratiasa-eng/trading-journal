@@ -6,3 +6,4 @@ matplotlib
 google-cloud-firestore
 numpy
 plotly
+bcrypt

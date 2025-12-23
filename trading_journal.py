@@ -98,6 +98,20 @@ def main():
         initial_sidebar_state="expanded"
     )
     
+    # === AUTHENTICATION CHECK ===
+    from auth_manager import (
+        is_authenticated, render_login_page, get_current_user, 
+        render_logout_button, render_admin_panel
+    )
+    
+    if not is_authenticated():
+        render_login_page()
+        return  # Stop here, show only login
+    
+    # Get current user
+    current_user = get_current_user()
+    
+
     # Custom CSS untuk desain mobile-first dan styling
     st.markdown("""
     <style>
@@ -300,6 +314,15 @@ def main():
     # ==========================================================================
     
     with st.sidebar:
+        # === USER INFO & LOGOUT ===
+        render_logout_button()
+        
+        # === ADMIN PANEL (Only for admins) ===
+        if current_user.get('role') == 'admin':
+            with st.expander("👑 Admin Panel", expanded=False):
+                render_admin_panel()
+        
+        st.markdown("---")
         st.title("🎯 Setup Trade")
         
         # === 🏆 WIN RATE KEEPER (Pressure Bar) ===
