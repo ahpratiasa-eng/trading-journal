@@ -15,6 +15,8 @@ DEFAULT_JOURNAL_FILE = "trading_journal.csv"
 import streamlit as st
 import pandas as pd
 import os
+import time
+import yfinance as yf
 from datetime import datetime
 import matplotlib.pyplot as plt
 
